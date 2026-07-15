@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Chronos Flip Stopwatch</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23202124'/%3E%3Cline x1='38' y1='10' x2='62' y2='10' stroke='%23ffffff' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='50' y1='10' x2='50' y2='20' stroke='%23ffffff' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='58' r='34' fill='none' stroke='%23ffffff' stroke-width='7'/%3E%3Cline x1='50' y1='58' x2='50' y2='38' stroke='%23ffffff' stroke-width='6' stroke-linecap='round'/%3E%3Cline x1='50' y1='58' x2='66' y2='58' stroke='%23ffffff' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='58' r='4' fill='%23ffffff'/%3E%3C/svg%3E">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :root {
+    --bg-color: #202124;
+    --text-color: #ffffff;
+    --font-family: 'Arial Narrow', Arial, Helvetica, sans-serif;
+    --panel-bg: rgba(255, 255, 255, 0.06);
+    --panel-border: rgba(255, 255, 255, 0.16);
+    --uh: 300px;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    background: var(--bg-color);
+    font-family: var(--font-family);
+    user-select: none;
+  }
+
+  /* ---------- Header / Logo ---------- */
+
+  .topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2vh 3vw 0.5vh;
+    color: var(--text-color);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.9;
+  }
+
+  .logo-icon {
+    width: clamp(26px, 4vh, 42px);
+    height: clamp(26px, 4vh, 42px);
+    color: var(--text-color);
+    flex-shrink: 0;
+  }
+
+  .logo-icon .hand-sweep {
+    transform-origin: 50px 58px;
+    animation: sweep 6s linear infinite;
+  }
+
+  @keyframes sweep {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .brand-name {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
+    font-size: clamp(13px, 1.8vh, 18px);
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+  }
+
+  .icon-btn {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-color);
+    width: clamp(36px, 5vh, 46px);
+    height: clamp(36px, 5vh, 46px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+  }
+
+  .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .icon-btn:active {
+    transform: scale(0.92);
+  }
+
+  .icon-btn svg {
+    width: 55%;
+    height: 55%;
+    stroke: currentColor;
+  }
+
+  /* ---------- Stage ---------- */
+
+  .stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    overflow: hidden;
+    padding: 1vh 3vw;
+  }
+
+  .stage-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--uh) * 0.1);
+  }
+
+  .digit-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: calc(var(--uh) * 0.06);
+  }
+
+  .row-label {
+    align-self: flex-end;
+    margin-left: calc(var(--uh) * 0.05);
+    margin-bottom: calc(var(--uh) * 0.02);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
+    font-size: calc(var(--uh) * 0.16);
+    color: var(--text-color);
+    opacity: 0.6;
+    line-height: 1;
+    user-select: none;
+  }
+
+  /* ---------- Flip Digit ---------- */
+
+  .flip-unit {
+    position: relative;
+    width: calc(var(--uh) * 0.64);
+    height: var(--uh);
+    border-radius: calc(var(--uh) * 0.045);
+    overflow: hidden;
+    border: 2px solid color-mix(in srgb, var(--text-color) 35%, transparent);
+  }
+
+  .flip-perspective {
+    position: absolute;
+    inset: 0;
+    perspective: calc(var(--uh) * 3);
+  }
+
+  .flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateX(0deg);
+    transition: transform 0.45s cubic-bezier(0.45, 0, 0.55, 1);
+  }
+
+  .flip-card-inner.flipping {
+    transform: rotateX(-180deg);
+  }
+
+  .face {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-color);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .face-front {
+    transform: rotateX(0deg);
+  }
+
+  .face-back {
+    transform: rotateX(180deg);
+  }
+
+  .face span {
+    display: block;
+    font-family: var(--font-family);
+    font-weight: 900;
+    font-stretch: condensed;
+    color: var(--text-color);
+    font-size: calc(var(--uh) * 0.72);
+    line-height: 1;
+  }
+
+  /* center hinge line, flat, no shadow/blur */
+  .flip-unit::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    background: color-mix(in srgb, var(--text-color) 35%, transparent);
+    transform: translateY(-1px);
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* ---------- Controls ---------- */
+
+  .controls {
+    flex: 0 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.4vh 4vw 3vh;
+  }
+
+  .buttons {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 3vw;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  button {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .buttons button {
+    flex: 1;
+    max-width: 240px;
+    font-weight: 700;
+    font-size: clamp(14px, 2.2vw, 22px);
+    letter-spacing: 0.14em;
+    color: var(--text-color);
+    background: transparent;
+    border: 2px solid var(--text-color);
+    border-radius: 14px;
+    padding: 1.8vh 1vw;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.08s ease;
+  }
+
+  .buttons button:hover:not(:disabled) {
+    background: var(--text-color);
+    color: var(--bg-color);
+  }
+
+  .buttons button:active:not(:disabled) {
+    transform: translateY(2px) scale(0.98);
+  }
+
+  .buttons button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* ---------- Settings Modal ---------- */
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    z-index: 10;
+    padding: 4vh 4vw;
+  }
+
+  .modal-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal {
+    width: 100%;
+    max-width: 420px;
+    max-height: 92vh;
+    overflow-y: auto;
+    background: color-mix(in srgb, var(--bg-color) 88%, black 12%);
+    border: 1px solid var(--panel-border);
+    border-radius: 20px;
+    color: var(--text-color);
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.22s ease;
+  }
+
+  .modal-backdrop.open .modal {
+    transform: translateY(0) scale(1);
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+
+  .modal-body {
+    padding: 20px 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .field-row label {
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    opacity: 0.85;
+  }
+
+  .field-row input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 44px;
+    height: 32px;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .field-row input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 2px;
+  }
+
+  .field-row input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 6px;
+  }
+
+  .field-row select {
+    background: var(--panel-bg);
+    color: var(--text-color);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    cursor: pointer;
+    max-width: 60%;
+  }
+
+  .field-row select option {
+    background: #1a1a1c;
+    color: #ffffff;
+  }
+
+  .slider-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--panel-bg);
+    border-radius: 6px;
+    outline: none;
+    border: 1px solid var(--panel-border);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--text-color);
+    border: 2px solid var(--bg-color);
+    cursor: pointer;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--text-color);
+    border: 2px solid var(--bg-color);
+    cursor: pointer;
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 8px;
+    background: var(--panel-bg);
+    border-radius: 6px;
+  }
+
+  .reset-defaults {
+    align-self: center;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    opacity: 0.55;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .reset-defaults:hover {
+    opacity: 0.9;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <svg class="logo-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <line x1="38" y1="10" x2="62" y2="10" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <line x1="50" y1="10" x2="50" y2="20" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <line x1="78" y1="24" x2="86" y2="16" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="50" cy="58" r="34" fill="none" stroke="currentColor" stroke-width="6"/>
+      <g class="hand-sweep">
+        <line x1="50" y1="58" x2="66" y2="58" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      </g>
+      <line x1="50" y1="58" x2="50" y2="38" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="50" cy="58" r="4" fill="currentColor"/>
+    </svg>
+    <span class="brand-name">Chronos</span>
+  </div>
+  <button class="icon-btn" id="settingsBtn" aria-label="Open settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
+</div>
+
+<div class="stage">
+  <div class="stage-content">
+    <div class="digit-row" id="mmRow"></div>
+    <div class="digit-row" id="ssRow"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="buttons">
+    <button id="startBtn">START</button>
+    <button id="stopBtn" disabled>STOP</button>
+    <button id="resetBtn">RESET</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Display Settings</span>
+      <button class="icon-btn" id="closeSettingsBtn" aria-label="Close settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round">
+          <line x1="5" y1="5" x2="19" y2="19"></line>
+          <line x1="19" y1="5" x2="5" y2="19"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <label for="textColorPicker">Number Color</label>
+        <input type="color" id="textColorPicker" value="#ffffff">
+      </div>
+      <div class="field-row">
+        <label for="bgColorPicker">Background Color</label>
+        <input type="color" id="bgColorPicker" value="#202124">
+      </div>
+      <div class="field-row">
+        <label for="fontSelect">Font Style</label>
+        <select id="fontSelect">
+          <option value="'Arial Narrow', Arial, Helvetica, sans-serif" selected>Condensed</option>
+          <option value="'Helvetica Neue', Helvetica, Arial, sans-serif">Modern Sans</option>
+          <option value="'Courier New', Courier, monospace">Digital Mono</option>
+          <option value="Georgia, 'Times New Roman', serif">Classic Serif</option>
+          <option value="Impact, 'Arial Narrow', sans-serif">Bold Display</option>
+          <option value="'Trebuchet MS', sans-serif">Clean Sans</option>
+        </select>
+      </div>
+      <div class="field-row slider-field">
+        <label for="sizeSlider">Number Size</label>
+        <input type="range" id="sizeSlider" min="100" max="1000" step="1" value="300">
+      </div>
+      <button class="reset-defaults" id="resetDefaultsBtn">Reset to Defaults</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var root = document.documentElement;
+
+  var stageEl = document.querySelector('.stage');
+  var stageContent = document.querySelector('.stage-content');
+  var mmRow = document.getElementById('mmRow');
+  var ssRow = document.getElementById('ssRow');
+
+  var startBtn = document.getElementById('startBtn');
+  var stopBtn = document.getElementById('stopBtn');
+  var resetBtn = document.getElementById('resetBtn');
+
+  var settingsBtn = document.getElementById('settingsBtn');
+  var closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  var modalBackdrop = document.getElementById('modalBackdrop');
+
+  var textColorPicker = document.getElementById('textColorPicker');
+  var bgColorPicker = document.getElementById('bgColorPicker');
+  var fontSelect = document.getElementById('fontSelect');
+  var sizeSlider = document.getElementById('sizeSlider');
+  var resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+
+  var DEFAULTS = {
+    textColor: '#ffffff',
+    bgColor: '#202124',
+    font: "'Arial Narrow', Arial, Helvetica, sans-serif"
+  };
+
+  var isRunning = false;
+  var startTimestamp = 0;
+  var accumulatedMs = 0;
+  var rafId = null;
+  var CAP_MS = (99 * 60 + 59) * 1000; // stopwatch maxes out at 99:59
+
+  // ---------- Flip digit construction ----------
+
+  function createFlipUnit(initialChar) {
+    var unit = document.createElement('div');
+    unit.className = 'flip-unit';
+
+    var perspective = document.createElement('div');
+    perspective.className = 'flip-perspective';
+
+    var inner = document.createElement('div');
+    inner.className = 'flip-card-inner';
+
+    var faceFront = document.createElement('div');
+    faceFront.className = 'face face-front';
+    var spanFront = document.createElement('span');
+    spanFront.textContent = initialChar;
+    faceFront.appendChild(spanFront);
+
+    var faceBack = document.createElement('div');
+    faceBack.className = 'face face-back';
+    var spanBack = document.createElement('span');
+    spanBack.textContent = initialChar;
+    faceBack.appendChild(spanBack);
+
+    inner.appendChild(faceFront);
+    inner.appendChild(faceBack);
+    perspective.appendChild(inner);
+    unit.appendChild(perspective);
+
+    unit._inner = inner;
+    unit._spanFront = spanFront;
+    unit._spanBack = spanBack;
+    unit._currentChar = initialChar;
+
+    return unit;
+  }
+
+  function updateFlipUnit(unit, newChar) {
+    if (unit._currentChar === newChar) {
+      return;
+    }
+    unit._currentChar = newChar;
+    unit._spanBack.textContent = newChar;
+
+    var inner = unit._inner;
+
+    function onTransitionEnd(e) {
+      if (e.propertyName !== 'transform') {
+        return;
+      }
+      inner.removeEventListener('transitionend', onTransitionEnd);
+      inner.style.transition = 'none';
+      inner.classList.remove('flipping');
+      unit._spanFront.textContent = newChar;
+      // Force reflow so the transition disable takes effect before re-enabling.
+      void inner.offsetWidth;
+      inner.style.transition = '';
+    }
+
+    inner.addEventListener('transitionend', onTransitionEnd);
+    inner.classList.add('flipping');
+  }
+
+  var mmTens = createFlipUnit('0');
+  var mmOnes = createFlipUnit('0');
+  var ssTens = createFlipUnit('0');
+  var ssOnes = createFlipUnit('0');
+
+  mmRow.appendChild(mmTens);
+  mmRow.appendChild(mmOnes);
+  ssRow.appendChild(ssTens);
+  ssRow.appendChild(ssOnes);
+
+  var mmLabel = document.createElement('span');
+  mmLabel.className = 'row-label';
+  mmLabel.textContent = 'M';
+  mmRow.appendChild(mmLabel);
+
+  var ssLabel = document.createElement('span');
+  ssLabel.className = 'row-label';
+  ssLabel.textContent = 'S';
+  ssRow.appendChild(ssLabel);
+
+  function pad2(n) {
+    return (n < 10 ? '0' : '') + n;
+  }
+
+  function formatParts(totalMs) {
+    var clamped = Math.min(totalMs, CAP_MS);
+    var totalSeconds = Math.floor(clamped / 1000);
+    var minutes = Math.floor(totalSeconds / 60);
+    var seconds = totalSeconds % 60;
+    return { mm: pad2(minutes), ss: pad2(seconds) };
+  }
+
+  function renderDigits() {
+    var elapsed = accumulatedMs;
+    if (isRunning) {
+      elapsed += performance.now() - startTimestamp;
+    }
+    var parts = formatParts(elapsed);
+    updateFlipUnit(mmTens, parts.mm.charAt(0));
+    updateFlipUnit(mmOnes, parts.mm.charAt(1));
+    updateFlipUnit(ssTens, parts.ss.charAt(0));
+    updateFlipUnit(ssOnes, parts.ss.charAt(1));
+    return elapsed;
+  }
+
+  // ---------- Sizing ----------
+
+  // Applies the requested unit height (from the slider) to the flip
+  // digits via the --uh CSS variable, then measures the real rendered
+  // box and scales down only if necessary so the display always fits
+  // inside the available stage area (never overflows width or height).
+  function applySize(requestedPx) {
+    root.style.setProperty('--uh', requestedPx + 'px');
+
+    var availableWidth = stageEl.clientWidth * 0.96;
+    var availableHeight = stageEl.clientHeight * 0.96;
+
+    var rect = stageContent.getBoundingClientRect();
+
+    var widthScale = rect.width > availableWidth ? availableWidth / rect.width : 1;
+    var heightScale = rect.height > availableHeight ? availableHeight / rect.height : 1;
+    var scale = Math.min(widthScale, heightScale, 1);
+
+    if (scale < 1) {
+      var appliedPx = Math.max(40, Math.floor(requestedPx * scale));
+      root.style.setProperty('--uh', appliedPx + 'px');
+    }
+  }
+
+  function refreshSize() {
+    applySize(parseInt(sizeSlider.value, 10));
+  }
+
+  // ---------- Timer controls ----------
+
+  function tick() {
+    var elapsed = renderDigits();
+    if (elapsed >= CAP_MS) {
+      accumulatedMs = CAP_MS;
+      isRunning = false;
+      rafId = null;
+      startBtn.disabled = true;
+      stopBtn.disabled = true;
+      resetBtn.disabled = false;
+      return;
+    }
+    if (isRunning) {
+      rafId = requestAnimationFrame(tick);
+    }
+  }
+
+  function start() {
+    if (isRunning || accumulatedMs >= CAP_MS) {
+      return;
+    }
+    isRunning = true;
+    startTimestamp = performance.now();
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    resetBtn.disabled = true;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stop() {
+    if (!isRunning) {
+      return;
+    }
+    accumulatedMs += performance.now() - startTimestamp;
+    if (accumulatedMs > CAP_MS) {
+      accumulatedMs = CAP_MS;
+    }
+    isRunning = false;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    startBtn.disabled = accumulatedMs >= CAP_MS;
+    stopBtn.disabled = true;
+    resetBtn.disabled = false;
+    renderDigits();
+  }
+
+  function reset() {
+    isRunning = false;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    accumulatedMs = 0;
+    startTimestamp = 0;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    resetBtn.disabled = false;
+    renderDigits();
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+  resetBtn.addEventListener('click', reset);
+
+  // ---------- Settings ----------
+
+  function openSettings() {
+    modalBackdrop.classList.add('open');
+  }
+
+  function closeSettings() {
+    modalBackdrop.classList.remove('open');
+  }
+
+  settingsBtn.addEventListener('click', openSettings);
+  closeSettingsBtn.addEventListener('click', closeSettings);
+  modalBackdrop.addEventListener('click', function (e) {
+    if (e.target === modalBackdrop) {
+      closeSettings();
+    }
+  });
+
+  textColorPicker.addEventListener('input', function () {
+    root.style.setProperty('--text-color', textColorPicker.value);
+  });
+
+  bgColorPicker.addEventListener('input', function () {
+    root.style.setProperty('--bg-color', bgColorPicker.value);
+  });
+
+  fontSelect.addEventListener('change', function () {
+    root.style.setProperty('--font-family', fontSelect.value);
+    refreshSize();
+  });
+
+  sizeSlider.addEventListener('input', refreshSize);
+
+  resetDefaultsBtn.addEventListener('click', function () {
+    root.style.setProperty('--text-color', DEFAULTS.textColor);
+    root.style.setProperty('--bg-color', DEFAULTS.bgColor);
+    root.style.setProperty('--font-family', DEFAULTS.font);
+    textColorPicker.value = DEFAULTS.textColor;
+    bgColorPicker.value = DEFAULTS.bgColor;
+    fontSelect.value = DEFAULTS.font;
+    var defaultSize = Math.round(window.innerHeight * 0.3);
+    if (defaultSize < 100) { defaultSize = 100; }
+    if (defaultSize > 1000) { defaultSize = 1000; }
+    sizeSlider.value = defaultSize;
+    refreshSize();
+  });
+
+  window.addEventListener('resize', refreshSize);
+  window.addEventListener('orientationchange', function () {
+    setTimeout(refreshSize, 50);
+  });
+
+  // Initialize: default slider value is approximately 30% of the
+  // viewport height (per flip-card unit), clamped to 100-1000 range.
+  var defaultSize = Math.round(window.innerHeight * 0.3);
+  if (defaultSize < 100) { defaultSize = 100; }
+  if (defaultSize > 1000) { defaultSize = 1000; }
+  sizeSlider.value = defaultSize;
+
+  renderDigits();
+  refreshSize();
+})();
+</script>
+
+</body>
+</html>
